@@ -17,6 +17,7 @@
   padding: 26px;
   display: grid;
   gap: 16px;
+  border-radius: 3px;
 }
 
 .attendance-header {
@@ -70,12 +71,13 @@
 .attendance-input {
   flex: 1;
   min-width: 180px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 0px solid rgba(255, 255, 255, 0.2);
   padding: 10px 12px;
   font-size: 14px;
   font-weight: 800;
   background: rgba(15, 23, 42, 0.55);
   color: var(--lf-text);
+  border-radius: 3px;
 }
 
 .attendance-hint {
@@ -101,7 +103,7 @@
 
 .attendance-tab {
   background: none;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   padding: 6px 0;
   font-weight: 800;
   color: var(--lf-muted);

@@ -87,7 +87,7 @@ ALTER TABLE complaints
 ADD COLUMN IF NOT EXISTS priority_score INTEGER;
 
 ALTER TABLE complaints
-ADD COLUMN IF NOT EXISTS complexity_label VARCHAR(20);ll
+ADD COLUMN IF NOT EXISTS complexity_label VARCHAR(20);
 
 ALTER TABLE complaints
 ALTER COLUMN priority_score SET DEFAULT 0,
@@ -108,6 +108,15 @@ END;
 ALTER TABLE complaints
 ALTER COLUMN priority_score SET NOT NULL,
 ALTER COLUMN complexity_label SET NOT NULL;
+
+-- 9. Complaint Assignments (many-to-many between complaints and caretakers)
+CREATE TABLE IF NOT EXISTS complaint_assignments (
+  id SERIAL PRIMARY KEY,
+  complaint_id INTEGER NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
+  caretaker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE(complaint_id, caretaker_id)
+);
 
 CREATE TABLE IF NOT EXISTS requests (
   id SERIAL PRIMARY KEY,

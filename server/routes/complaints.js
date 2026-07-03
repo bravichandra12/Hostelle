@@ -33,6 +33,16 @@ const ensureComplaintTriageColumns = async () => {
     END
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS complaint_assignments (
+      id SERIAL PRIMARY KEY,
+      complaint_id INTEGER NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
+      caretaker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+      UNIQUE(complaint_id, caretaker_id)
+    )
+  `);
+
   complaintColumnsEnsured = true;
 };
 
@@ -80,7 +90,7 @@ router.post("/", async (req, res) => {
     }
 
     const userResult = await pool.query(
-      "SELECT id, role FROM users WHERE id = $1",
+      "SELECT id, role, hostel FROM users WHERE id = $1",
       [userId]
     );
 
@@ -88,7 +98,8 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (userResult.rows[0].role !== "student") {
+    const user = userResult.rows[0];
+    if (user.role !== "student") {
       return res.status(403).json({ error: "Only students can submit complaints" });
     }
 
@@ -120,6 +131,22 @@ router.post("/", async (req, res) => {
     ];
 
     const { rows } = await pool.query(insert, values);
+    const complaintId = rows[0].id;
+
+    // Find all caretakers for the same hostel
+    const caretakersResult = await pool.query(
+      "SELECT id FROM users WHERE role = 'caretaker' AND hostel = $1",
+      [user.hostel]
+    );
+
+    // Assign complaint to all caretakers of the same hostel
+    for (const caretaker of caretakersResult.rows) {
+      await pool.query(
+        "INSERT INTO complaint_assignments (complaint_id, caretaker_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [complaintId, caretaker.id]
+      );
+    }
+
     return res.status(201).json({ success: true, complaint: rows[0], triage });
   } catch (error) {
     console.error("Complaint create error", error);
@@ -164,6 +191,8 @@ router.get("/", async (req, res) => {
               u.hostel
        FROM complaints c
        JOIN users u ON u.id = c.user_id
+       JOIN complaint_assignments ca ON ca.complaint_id = c.id
+       WHERE ca.caretaker_id = $1
        ORDER BY
          CASE c.complexity_label
            WHEN 'High' THEN 0
@@ -175,8 +204,9 @@ router.get("/", async (req, res) => {
            WHEN 'P3 Low' THEN 2
            ELSE 2
          END ASC,
-         c.priority_score DESC,
-         c.created_at DESC`
+         (c.priority_score + (EXTRACT(EPOCH FROM (now() - c.created_at)) / 3600) * 1.0) DESC,
+         c.created_at DESC`,
+      [caretakerId]
     );
 
     return res.json({ success: true, complaints: rows });
@@ -210,6 +240,16 @@ router.delete("/:id", async (req, res) => {
 
     if (caretakerResult.rows[0].role !== "caretaker") {
       return res.status(403).json({ error: "Only caretakers can resolve complaints" });
+    }
+
+    // Verify the complaint is assigned to this caretaker
+    const assignmentResult = await pool.query(
+      "SELECT id FROM complaint_assignments WHERE complaint_id = $1 AND caretaker_id = $2",
+      [complaintId, caretakerId]
+    );
+
+    if (!assignmentResult.rows.length) {
+      return res.status(403).json({ error: "This complaint is not assigned to you" });
     }
 
     const deleteResult = await pool.query(

@@ -58,7 +58,7 @@ export const QUICK_ACTIONS = [
   },
   {
     key: "complaint-queue",
-    title: "Complaint Queue",
+    title: "Complaint List",
     description: "Prioritize and resolve student complaints.",
     path: "/complaints/list",
     roles: ["caretaker"],
