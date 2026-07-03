@@ -3,12 +3,12 @@ import pool from "../db.js";
 
 const router = express.Router();
 
-// ✅ APPLY FINE (USING ROLL NUMBER)
+//APPLY FINE (USING ROLL NUMBER)
 router.post("/apply", async (req, res) => {
   try {
     const { caretakerId, rollNo, description, amount } = req.body;
     console.log("BODY RECEIVED:", req.body);
-    // 🔹 Validation
+    // Validation
     if (!caretakerId || !rollNo || !description || amount === undefined) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -17,7 +17,7 @@ router.post("/apply", async (req, res) => {
       return res.status(400).json({ error: "Amount must be greater than 0" });
     }
 
-    // 🔹 Check caretaker
+    // Check caretaker
     const caretakerResult = await pool.query(
       "SELECT id, role FROM users WHERE id = $1",
       [caretakerId]
@@ -31,7 +31,7 @@ router.post("/apply", async (req, res) => {
       return res.status(403).json({ error: "Only caretakers can apply fines" });
     }
 
-    // 🔥 FIND STUDENT USING ROLL NO
+    //FIND STUDENT USING ROLL NO
     const studentResult = await pool.query(
       "SELECT id, email FROM users WHERE LOWER(roll_no) = LOWER($1) AND role = 'student'",
       [rollNo.trim()]
@@ -43,7 +43,7 @@ router.post("/apply", async (req, res) => {
 
     const student = studentResult.rows[0];
 
-    // 🔹 INSERT FINE
+    //INSERT FINE
     const fineQuery = `
       INSERT INTO fines (caretaker_id, student_email, description, amount, status)
       VALUES ($1, $2, $3, $4, 'pending')
@@ -79,12 +79,12 @@ router.post("/apply", async (req, res) => {
 });
 
 
-// ✅ GET FINES FOR STUDENT USING ROLL NO
+//GET FINES FOR STUDENT USING ROLL NO
 router.get("/student/:rollNo", async (req, res) => {
   try {
     const { rollNo } = req.params;
 
-    // 🔥 Get student email from roll_no
+    //Get student email from roll_no
     const userResult = await pool.query(
       "SELECT email FROM users WHERE LOWER(roll_no) = LOWER($1)",
       [rollNo]
@@ -122,7 +122,7 @@ router.get("/student/:rollNo", async (req, res) => {
 });
 
 
-// ✅ GET ALL FINES BY CARETAKER
+//GET ALL FINES BY CARETAKER
 router.get("/caretaker/:caretakerId", async (req, res) => {
   try {
     const { caretakerId } = req.params;
@@ -148,7 +148,7 @@ router.get("/caretaker/:caretakerId", async (req, res) => {
 });
 
 
-// ✅ MARK FINE AS PAID
+// MARK FINE AS PAID
 router.put("/:fineId/mark-paid", async (req, res) => {
   try {
     const { fineId } = req.params;
@@ -180,7 +180,7 @@ router.put("/:fineId/mark-paid", async (req, res) => {
 });
 
 
-// ✅ CANCEL FINE
+// CANCEL FINE
 router.put("/:fineId/cancel", async (req, res) => {
   try {
     const { fineId } = req.params;

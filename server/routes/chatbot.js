@@ -173,8 +173,8 @@ const buildPrompt = (question, contextBlocks, history = []) => {
   const recentHistory = history.slice(-6);
   const historyBlock = recentHistory.length
     ? recentHistory
-        .map((entry) => `${entry.role === "user" ? "User" : "Assistant"}: ${entry.content}`)
-        .join("\n")
+      .map((entry) => `${entry.role === "user" ? "User" : "Assistant"}: ${entry.content}`)
+      .join("\n")
     : "No previous conversation.";
 
   const context = contextBlocks
@@ -249,31 +249,6 @@ const buildFallbackAnswer = (question, chunks) => {
     if (!value) return null;
     return typeof format === "function" ? format(value) : value;
   };
-
-  if (lowerQuestion.includes("warden")) {
-    const answer = pick(/Warden:\s*(.+?)(?:\s+Caretaker:|$)/i, (value) => `Warden: ${value}`);
-    if (answer) return answer;
-  }
-
-  if (lowerQuestion.includes("caretaker")) {
-    const answer = pick(/Caretaker:\s*(.+?)(?:\s+Technicians:|$)/i, (value) => `Caretaker: ${value}`);
-    if (answer) return answer;
-  }
-
-  if (lowerQuestion.includes("entry time")) {
-    const answer = pick(/Entry time:\s*([^\.]+)\./i, (value) => `Entry time: ${value.trim()}.`);
-    if (answer) return answer;
-  }
-
-  if (lowerQuestion.includes("exit time")) {
-    const answer = pick(/Exit time:\s*([^\.]+)\./i, (value) => `Exit time: ${value.trim()}.`);
-    if (answer) return answer;
-  }
-
-  if (lowerQuestion.includes("plumber")) {
-    const answer = pick(/Plumber\s+([^\(]+\(\d+\))/i, (value) => `Plumber: ${value.trim()}`);
-    if (answer) return answer;
-  }
 
   const questionTokens = new Set(tokenize(question));
   const candidateSentences = chunks

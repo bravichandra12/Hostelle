@@ -23,12 +23,14 @@ body {
   min-height: calc(100vh - 120px);
   margin-top: 120px;
   padding: 20px;
+  border-radius: 3px;
 }
 
 .request-form {
   max-width: 620px;
   margin-left: auto;
   margin-right: auto;
+  border-radius: 3px;
 }
 
 .request-form,
@@ -38,7 +40,7 @@ body {
 .modal-content {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0;
+  border-radius: 3px;
   backdrop-filter: blur(15px);
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
   padding: 25px;
@@ -51,6 +53,7 @@ body {
   padding: 28px;
   min-height: 100vh;
   margin-top: 0;
+  border-radius: 3px;
 }
 
 .request-form-modal {
@@ -58,6 +61,7 @@ body {
   min-height: auto;
   margin-top: 0;
   padding: 26px;
+  border-radius: 3px;
 }
 
 .request-form h3 {
@@ -66,10 +70,12 @@ body {
   font-size: 2rem;
   font-weight: 700;
   color: #e2e8f0;
+  border-radius: 3px;
 }
 
 .form-group {
   margin-bottom: 22px;
+  border-radius: 3px;
 }
 
 .form-group label {
@@ -78,6 +84,7 @@ body {
   font-weight: 600;
   color: var(--text-main);
   font-size: 14px;
+  border-radius: 3px;
 }
 
 .form-group input,
@@ -86,7 +93,7 @@ body {
   width: 100%;
   padding: 13px 16px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0;
+  border-radius: 3px;
   background: rgba(15, 23, 42, 0.55);
   color: var(--text-main);
   font-size: 16px;
@@ -101,20 +108,24 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
   background: rgba(15, 23, 42, 0.8);
+  border-radius: 3px;
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
   color: var(--text-muted);
+  border-radius: 3px;
 }
 
 .form-group select {
   cursor: pointer;
+  border-radius: 3px;
 }
 
 .form-group textarea {
   resize: vertical;
   min-height: 110px;
+  border-radius: 3px;
 }
 
 .image-preview {
@@ -135,8 +146,8 @@ body {
   padding: 14px 24px;
   background: linear-gradient(135deg, var(--accent), #7c3aed);
   color: white;
-  border: none;
-  border-radius: 0;
+  border: 0px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -148,10 +159,12 @@ body {
 .btn-primary.large:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  border-radius: 3px;
 }
 
 .btn-primary:active {
   transform: translateY(0);
+  border-radius: 3px;
 }
 
 @media (max-width: 768px) {
@@ -161,17 +174,20 @@ body {
 
   .request-form h3 {
     font-size: 1.6rem;
-  }
+  border-radius: 3px;
+}
 
   .form-group input,
   .form-group select,
   .form-group textarea {
     padding: 10px 14px;
     font-size: 14px;
-  }
+  border-radius: 3px;
+}
 
   .btn-primary {
     padding: 12px 20px;
     font-size: 15px;
-  }
+  border-radius: 3px;
+}
 }

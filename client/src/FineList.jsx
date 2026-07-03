@@ -33,7 +33,7 @@ function FineList({ user }) {
         `/api/fines/${id}/mark-paid`
       );
 
-      // ✅ remove from UI instantly
+      // Remove from UI instantly
       setFines((prev) => prev.filter((f) => f.id !== id));
 
     } catch (err) {

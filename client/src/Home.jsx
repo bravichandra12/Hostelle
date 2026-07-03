@@ -129,7 +129,6 @@ function Home({ user, onLogout }) {
 
         {user && (
           <section className="home-services">
-            <h3 className="home-services-title">Quick Actions</h3>
             <div className="home-services-grid">
               {quickActions.map((action) => (
                 <Link key={action.key} to={action.path} className="home-service-card">

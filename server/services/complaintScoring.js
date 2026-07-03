@@ -250,12 +250,12 @@ export const classifyComplaint = async (complaint) => {
   const emergencyByRule = hasCriticalEmergencySignals(complaint);
   const effectiveParams = emergencyByRule
     ? {
-        ...extracted,
-        emergency_flag: true,
-        safety_risk: Math.max(extracted.safety_risk, 5),
-        time_sensitivity: Math.max(extracted.time_sensitivity, 5),
-        sla_escalation: Math.max(extracted.sla_escalation, 5),
-      }
+      ...extracted,
+      emergency_flag: true,
+      safety_risk: Math.max(extracted.safety_risk, 5),
+      time_sensitivity: Math.max(extracted.time_sensitivity, 5),
+      sla_escalation: Math.max(extracted.sla_escalation, 5),
+    }
     : extracted;
 
   const computedScore = computeScore(effectiveParams);

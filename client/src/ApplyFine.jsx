@@ -169,7 +169,7 @@ function ApplyFine({ user }) {
             padding: "10px 20px",
             backgroundColor: isLoading ? "#999" : "#007bff",
             color: "white",
-            border: "none",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
             borderRadius: "4px",
             cursor: isLoading ? "not-allowed" : "pointer",
           }}
