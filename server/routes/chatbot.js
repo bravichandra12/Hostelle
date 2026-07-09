@@ -111,29 +111,27 @@ const buildPrompt = (
     `;
 };
 
-const callGemini = async (prompt) => {
-  const apiKey =
-    process.env.GOOGLE_API_KEY ||
-    process.env.GEMINI_API_KEY;
+const callGroq = async (prompt) => {
+  const apiKey = process.env.GROQ_API_KEY;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    "https://api.groq.com/openai/v1/chat/completions",
     {
       method: "POST",
       headers: {
-        "Content-Type":
-          "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        contents: [
+        model: "llama-3.1-8b-instant",
+        messages: [
           {
-            parts: [{ text: prompt }],
+            role: "user",
+            content: prompt,
           },
         ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 300,
-        },
+        temperature: 0.2,
+        max_tokens: 300,
       }),
     }
   );
@@ -144,12 +142,7 @@ const callGemini = async (prompt) => {
 
   const data = await response.json();
 
-  return (
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("\n")
-      .trim() || ""
-  );
+  return data?.choices?.[0]?.message?.content || "";
 };
 
 router.post(
@@ -184,11 +177,11 @@ router.post(
         history
       );
 
-      const answer =
-      topChunks[0]?.text ||
-      "I do not have enough information.";
+      // const answer =
+      // topChunks[0]?.text ||
+      // "I do not have enough information.";
 
-      // const answer =callGemini(prompt);
+      const answer =await callGroq(prompt);
 
       return res.json({
         success: true,
