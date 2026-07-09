@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./LostFound.css";
 
@@ -9,60 +9,6 @@ const getSavedUser = () => {
   } catch {
     return null;
   }
-};
-
-const sortItems = (list) =>
-  [...list].sort((a, b) => {
-    if (!a.claimedBy && b.claimedBy) return -1;
-    if (a.claimedBy && !b.claimedBy) return 1;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-
-const tokenize = (text) =>
-  String(text || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-
-const termFrequency = (tokens) => {
-  const freq = new Map();
-  tokens.forEach((token) => {
-    freq.set(token, (freq.get(token) || 0) + 1);
-  });
-  return freq;
-};
-
-const cosineSimilarity = (queryText, itemText) => {
-  const queryTokens = tokenize(queryText);
-  const itemTokens = tokenize(itemText);
-
-  if (!queryTokens.length || !itemTokens.length) {
-    return 0;
-  }
-
-  const queryVector = termFrequency(queryTokens);
-  const itemVector = termFrequency(itemTokens);
-
-  let dotProduct = 0;
-  let queryNorm = 0;
-  let itemNorm = 0;
-
-  queryVector.forEach((value, key) => {
-    queryNorm += value * value;
-    dotProduct += value * (itemVector.get(key) || 0);
-  });
-
-  itemVector.forEach((value) => {
-    itemNorm += value * value;
-  });
-
-  const denominator = Math.sqrt(queryNorm) * Math.sqrt(itemNorm);
-  if (!denominator) {
-    return 0;
-  }
-
-  return dotProduct / denominator;
 };
 
 const toSearchableText = (item) =>
@@ -80,33 +26,31 @@ const toSearchableText = (item) =>
 function Lost() {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredItems, setFilteredItems] = useState([]);
   const [error, setError] = useState(null);
   const [claimItem, setClaimItem] = useState(null);
   const [claimFile, setClaimFile] = useState(null);
   const [claimError, setClaimError] = useState(null);
   const navigate = useNavigate();
-  const savedUser = useMemo(getSavedUser, []);
+  const savedUser = getSavedUser();
 
-  const visibleItems = useMemo(() => {
-    const query = searchQuery.trim();
-    if (!query) {
-      return items;
+  const applySearch = (sourceItems, queryText = searchQuery) => {
+    const searchText = queryText.trim().toLowerCase();
+
+    if (!searchText) {
+      return sourceItems;
     }
 
-    return items
-      .map((item) => ({
-        item,
-        score: cosineSimilarity(query, toSearchableText(item)),
-      }))
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        if (!a.item.claimedBy && b.item.claimedBy) return -1;
-        if (a.item.claimedBy && !b.item.claimedBy) return 1;
-        return new Date(b.item.createdAt).getTime() - new Date(a.item.createdAt).getTime();
-      })
-      .map((entry) => entry.item);
-  }, [items, searchQuery]);
+    const filteredTodos = sourceItems.filter((item) =>
+      toSearchableText(item).toLowerCase().includes(searchText)
+    );
+
+    return filteredTodos;
+  };
+
+  const handleSearch = () => {
+    setFilteredItems(applySearch(items));
+  };
 
   const handleCardKeyDown = (event, itemId) => {
     if (event.key === "Enter") {
@@ -126,7 +70,9 @@ function Lost() {
         if (!response.ok) {
           throw new Error(result.error || "Unable to fetch items");
         }
-        setItems(sortItems(result.items || []));
+        const nextItems = result.items || [];
+        setItems(nextItems);
+        setFilteredItems(applySearch(nextItems, searchQuery));
       } catch (err) {
         setError(err.message);
       }
@@ -181,7 +127,11 @@ function Lost() {
         throw new Error(result.error || "Unable to claim item");
       }
 
-      setItems((prev) => sortItems(prev.map((item) => (item.id === claimItem.id ? result.item : item))));
+      setItems((prev) => {
+        const nextItems = prev.map((item) => (item.id === claimItem.id ? result.item : item));
+        setFilteredItems(applySearch(nextItems, searchQuery));
+        return nextItems;
+      });
       handleCloseClaim();
     } catch (err) {
       setClaimError(err.message);
@@ -214,7 +164,11 @@ function Lost() {
         throw new Error(result.error || "Unable to delete post");
       }
 
-      setItems((prev) => prev.filter((item) => item.id !== itemId));
+      setItems((prev) => {
+        const nextItems = prev.filter((item) => item.id !== itemId);
+        setFilteredItems(applySearch(nextItems, searchQuery));
+        return nextItems;
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -243,19 +197,21 @@ function Lost() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
-            <button className="lf-button secondary" type="button">Search</button>
+            <button className="lf-button secondary" type="button" onClick={handleSearch}>
+              Search
+            </button>
           </div>
         </div>
 
         {error && <p className="lf-error">{error}</p>}
 
         <section className="lf-list">
-          {visibleItems.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <p className="lf-empty">
               {searchQuery.trim() ? "No close matches found." : "No found items yet."}
             </p>
           ) : (
-            visibleItems.map((item) => (
+            filteredItems.map((item) => (
               <article
                 key={item.id}
                 className="lf-item lf-item-link"
