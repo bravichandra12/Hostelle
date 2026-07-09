@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { getDistance } from "geolib";
 import nodemailer from "nodemailer";
 import pool from "../db.js";
+import redis from "../redis/redisClient.js";
 
 const router = express.Router();
 
@@ -80,24 +81,19 @@ router.post("/request-otp", async (req, res) => {
     console.log(`${otp}`);
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
-    await pool.query("DELETE FROM attendance_otps WHERE user_id = $1", [userId]);
-
-    const insertOtp = `
-      INSERT INTO attendance_otps (user_id, otp_hash, expires_at, latitude, longitude, accuracy)
-      VALUES ($1, $2, now() + $3::interval, $4, $5, $6)
-      RETURNING id, expires_at
-    `;
-
-    const { rows } = await pool.query(insertOtp, [
-      userId,
+    const otpData = {
       otpHash,
-      `${OTP_TTL_SECONDS} seconds`,
       latitude,
       longitude,
-      accuracy || null,
-    ]);
+      accuracy: accuracy || null,
+    };
 
-    const otpRecord = rows[0];
+    await redis.setEx(
+      `attendance:${userId}`,
+      OTP_TTL_SECONDS,
+      JSON.stringify(otpData)
+    );
+
     const userEmail = userResult.rows[0].email;
     const from = process.env.SMTP_FROM || process.env.SMTP_USER;
 
@@ -110,8 +106,7 @@ router.post("/request-otp", async (req, res) => {
 
     return res.json({
       message: `OTP sent to ${maskEmail(userEmail)}.`,
-      attemptId: otpRecord.id,
-      expiresAt: otpRecord.expires_at,
+      expiresIn: OTP_TTL_SECONDS,
     });
   } catch (error) {
     console.error("Attendance OTP error", error);
@@ -120,32 +115,23 @@ router.post("/request-otp", async (req, res) => {
 });
 
 router.post("/verify-otp", async (req, res) => {
-  const { userId, attemptId, otp } = req.body;
+  const { userId, otp } = req.body;
     
-  if (!userId || !attemptId || !otp) {
-    return res.status(400).json({ message: "User, attempt id, and OTP are required." });
+  if (!userId || !otp) {
+    return res.status(400).json({ message: "User and OTP are required." });
   }
 
   try {
-    const otpResult = await pool.query(
-      `SELECT id, otp_hash, expires_at, latitude, longitude, accuracy
-       FROM attendance_otps
-       WHERE id = $1 AND user_id = $2`,
-      [attemptId, userId]
-    );
+    const cachedOtp = await redis.get(`attendance:${userId}`);
 
-    if (!otpResult.rows.length) {
-      return res.status(404).json({ message: "OTP request not found." });
-    }
-
-    const otpRow = otpResult.rows[0];
-    if (new Date(otpRow.expires_at).getTime() < Date.now()) {
-      await pool.query("DELETE FROM attendance_otps WHERE id = $1", [attemptId]);
+    if (!cachedOtp) {
       return res.status(410).json({ message: "OTP expired. Please request a new one." });
     }
 
+    const otpRow = JSON.parse(cachedOtp);
+
     const incomingHash = crypto.createHash("sha256").update(String(otp)).digest("hex");
-    if (incomingHash !== otpRow.otp_hash) {
+    if (incomingHash !== otpRow.otpHash) {
       return res.status(401).json({ message: "Invalid OTP." });
     }
 
@@ -155,17 +141,21 @@ router.post("/verify-otp", async (req, res) => {
     );
 
     if (todayResult.rows.length) {
-      await pool.query("DELETE FROM attendance_otps WHERE id = $1", [attemptId]);
       return res.status(409).json({ message: "Attendance already marked for today." });
     }
 
     await pool.query(
       `INSERT INTO attendance (user_id, latitude, longitude, accuracy)
        VALUES ($1, $2, $3, $4)`,
-      [userId, otpRow.latitude, otpRow.longitude, otpRow.accuracy]
+      [
+        userId,
+        otpRow.latitude,
+        otpRow.longitude,
+        otpRow.accuracy,
+      ]
     );
 
-    await pool.query("DELETE FROM attendance_otps WHERE id = $1", [attemptId]);
+    await redis.del(`attendance:${userId}`);
 
     return res.json({ message: "Attendance marked successfully." });
   } catch (error) {
