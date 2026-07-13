@@ -1,5 +1,6 @@
 import express from "express";
 import pool from "../db.js";
+import redis from "../redis/redisClient.js";
 import { classifyComplaint } from "../services/complaintScoring.js";
 
 const router = express.Router();
@@ -76,6 +77,18 @@ const VALID_TYPES = new Set([
   "others",
 ]);
 
+const invalidateComplaintCache = async (caretakerIds = []) => {
+  const uniqueCaretakerIds = [...new Set(caretakerIds.map((id) => Number(id)).filter(Boolean))];
+
+  if (!uniqueCaretakerIds.length) {
+    return;
+  }
+
+  await Promise.all(
+    uniqueCaretakerIds.map((caretakerId) => redis.del(`complaints:${caretakerId}`))
+  );
+};
+
 router.post("/", async (req, res) => {
   try {
     const { userId, complaintType, description, location } = req.body;
@@ -147,6 +160,8 @@ router.post("/", async (req, res) => {
       );
     }
 
+    await invalidateComplaintCache(caretakersResult.rows.map((caretaker) => caretaker.id));
+
     return res.status(201).json({ success: true, complaint: rows[0], triage });
   } catch (error) {
     console.error("Complaint create error", error);
@@ -175,6 +190,17 @@ router.get("/", async (req, res) => {
     }
 
     await ensureComplaintTriageColumns();
+
+    const cacheKey = `complaints:${caretakerId}`;
+    const cached = await redis.get(cacheKey);
+
+    if (cached) {
+      try {
+        return res.json(JSON.parse(cached));
+      } catch (parseError) {
+        console.error("Complaint cache parse error", parseError);
+      }
+    }
 
     const { rows } = await pool.query(
       `SELECT c.id,
@@ -208,6 +234,8 @@ router.get("/", async (req, res) => {
          c.created_at DESC`,
       [caretakerId]
     );
+
+    await redis.setEx(cacheKey, 60, JSON.stringify({ success: true, complaints: rows }));
 
     return res.json({ success: true, complaints: rows });
   } catch (error) {
@@ -252,6 +280,11 @@ router.delete("/:id", async (req, res) => {
       return res.status(403).json({ error: "This complaint is not assigned to you" });
     }
 
+    const assignedCaretakersResult = await pool.query(
+      "SELECT caretaker_id FROM complaint_assignments WHERE complaint_id = $1",
+      [complaintId]
+    );
+
     const deleteResult = await pool.query(
       "DELETE FROM complaints WHERE id = $1 RETURNING id",
       [complaintId]
@@ -260,6 +293,10 @@ router.delete("/:id", async (req, res) => {
     if (!deleteResult.rows.length) {
       return res.status(404).json({ error: "Complaint not found" });
     }
+
+    await invalidateComplaintCache(
+      assignedCaretakersResult.rows.map((row) => row.caretaker_id)
+    );
 
     return res.json({ success: true, deletedId: deleteResult.rows[0].id });
   } catch (error) {
